@@ -4,21 +4,21 @@ package sq // modified to break import cycle
 // TABLE_APPLICATIONS references the public.applications table.
 type TABLE_APPLICATIONS struct {
 	*TableInfo
-	APPLICATION_DATA     JSONField
-	APPLICATION_FORM_ID  NumberField
-	APPLICATION_ID       NumberField
-	COHORT               StringField
-	CREATED_AT           TimeField
-	CREATOR_USER_ROLE_ID NumberField
-	DELETED_AT           TimeField
-	MAGICSTRING          StringField
-	PROJECT_IDEA         StringField
-	PROJECT_LEVEL        StringField
-	STATUS               StringField
-	SUBMITTED            BooleanField
-	TEAM_ID              NumberField
-	TEAM_NAME            StringField
-	UPDATED_AT           TimeField
+	APPLICATION_DATA     JSONField    `ddl:"JSONB"`
+	APPLICATION_FORM_ID  NumberField  `ddl:"INT"`
+	APPLICATION_ID       NumberField  `ddl:"INT,SERIAL,PRIMARY KEY"`
+	COHORT               StringField  `ddl:"TEXT"`
+	CREATED_AT           TimeField    `ddl:"TIMESTAMPTZ,NOT NULL,DEFAULT NOW()"`
+	CREATOR_USER_ROLE_ID NumberField  `ddl:""`
+	DELETED_AT           TimeField    `ddl:""`
+	MAGICSTRING          StringField  `ddl:""`
+	PROJECT_IDEA         StringField  `ddl:""`
+	PROJECT_LEVEL        StringField  `ddl:""`
+	STATUS               StringField  `ddl:""`
+	SUBMITTED            BooleanField `ddl:""`
+	TEAM_ID              NumberField  `ddl:""`
+	TEAM_NAME            StringField  `ddl:""`
+	UPDATED_AT           TimeField    `ddl:""`
 }
 
 // APPLICATIONS creates an instance of the public.applications table.
@@ -43,6 +43,33 @@ func APPLICATIONS() TABLE_APPLICATIONS {
 	tbl.TEAM_NAME = NewStringField("team_name", tbl.TableInfo)
 	tbl.UPDATED_AT = NewTimeField("updated_at", tbl.TableInfo)
 	return tbl
+}
+
+func (a TABLE_APPLICATIONS) Constraints(t *TableConfig) {
+	c := Constraints{}
+	t.Field(a.APPLICATION_ID, "INT", c.Serial, c.PrimaryKey)
+	t.Field(a.CREATOR_USER_ROLE_ID, "INT")
+	t.Field(a.TEAM_ID, "INT")
+	t.Field(a.APPLICATION_FORM_ID, "INT", c.NotNull)
+	t.Field(a.APPLICATION_DATA, "JSONB")
+	t.Field(a.COHORT, "TEXT", c.NotNull, c.Default("DATE_PART('year', CURRENT_DATE)"))
+	t.Field(a.STATUS, "TEXT", c.NotNull, c.Default("'pending'"))
+	t.Field(a.TEAM_NAME, "TEXT")
+	t.Field(a.PROJECT_LEVEL, "TEXT", c.Default("'gemini'"))
+	t.Field(a.PROJECT_IDEA, "TEXT", c.NotNull, c.Default("''"))
+	t.Field(a.MAGICSTRING, "TEXT", c.Unique, c.Default("TRANSLATE(gen_random_uuid()::TEXT, '-', '')"))
+	t.Field(a.SUBMITTED, "BOOLEAN", c.NotNull, c.Default("FALSE"))
+	t.Field(a.CREATED_AT, "TIMESTAMPTZ", c.NotNull, c.Default("NOW()"))
+	t.Field(a.UPDATED_AT, "TIMESTAMPTZ", c.NotNull, c.Default("NOW()"))
+	t.Field(a.DELETED_AT, "TIMESTAMPTZ")
+
+	t.Unique(a.COHORT, a.TEAM_NAME)
+	t.ForeignKey(a.TEAM_ID, TEAMS().TEAM_ID, c.OnUpdateCascade)
+	t.ForeignKey(a.CREATOR_USER_ROLE_ID, USER_ROLES().USER_ROLE_ID, c.OnUpdateCascade)
+	t.ForeignKey(a.APPLICATION_FORM_ID, FORMS().FORM_ID, c.OnUpdateCascade)
+	t.ForeignKey(a.COHORT, COHORT_ENUM().COHORT, c.OnUpdateCascade)
+	t.ForeignKey(a.PROJECT_LEVEL, PROJECT_LEVEL_ENUM().PROJECT_LEVEL, c.OnUpdateCascade)
+	t.ForeignKey(a.STATUS, APPLICATIONS_STATUS_ENUM().STATUS, c.OnUpdateCascade)
 }
 
 // As modifies the alias of the underlying table.
@@ -813,6 +840,16 @@ func USERS() TABLE_USERS {
 	tbl.PASSWORD = NewStringField("password", tbl.TableInfo)
 	tbl.USER_ID = NewNumberField("user_id", tbl.TableInfo)
 	return tbl
+}
+
+func (u TABLE_USERS) Constraints(t *TableConfig) {
+	c := Constraints{}
+	t.Field(u.DISPLAYNAME, "TEXT", c.NotNull, c.Default(""))
+	t.Field(u.EMAIL, "TEXT", c.NotNull, c.Unique)
+	t.Field(u.PASSWORD, "TEXT")
+	t.Field(u.USER_ID, "INT", c.Serial, c.PrimaryKey)
+
+	t.Unique(u.DISPLAYNAME, u.EMAIL)
 }
 
 // As modifies the alias of the underlying table.
